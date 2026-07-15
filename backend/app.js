@@ -11,6 +11,7 @@ const analyticsRoutes   = require('./routes/analyticsRoutes');
 const creditRoutes      = require('./routes/creditRoutes');
 const adminRoutes       = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const userRoutes        = require('./routes/userRoutes');
 
 const { sendSuccess }                    = require('./utils/apiResponse');
 const { notFoundHandler, errorHandler }  = require('./middleware/errorHandler');
@@ -19,8 +20,9 @@ const app = express();
 
 // CORS — open in development
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Default 100kb is too small for base64-encoded profile/cover photo uploads.
+app.use(express.json({ limit: '8mb' }));
+app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 
 // Health check
 app.get('/api/health', (req, res) =>
@@ -41,6 +43,7 @@ app.use('/api/analytics',    analyticsRoutes);
 app.use('/api/credits',      creditRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users',        userRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -14,9 +14,10 @@ import {
 
 import { Button } from '@/components/Button';
 import { ScreenContainer } from '@/components/ScreenContainer';
-import { colors } from '@/constants/colors';
+import { ThemeColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/layout';
-import { typography } from '@/constants/typography';
+import { Typography } from '@/constants/typography';
+import { useTheme } from '@/hooks/useTheme';
 
 interface Slide {
   key: string;
@@ -47,6 +48,8 @@ const SLIDES: Slide[] = [
 ];
 
 function Illustration({ kind }: { kind: Slide['illustration'] }) {
+  const { colors, typography } = useTheme();
+  const styles = getStyles(colors, typography);
   return (
     <View style={styles.illustration}>
       {kind === 'crew' && (
@@ -82,6 +85,8 @@ function Illustration({ kind }: { kind: Slide['illustration'] }) {
 export default function OnboardingScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { colors, typography } = useTheme();
+  const styles = getStyles(colors, typography);
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList<Slide>>(null);
 
@@ -144,7 +149,8 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   listWrap: {
     flex: 1,
   },

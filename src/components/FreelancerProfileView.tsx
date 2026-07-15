@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemeColors } from '@/constants/colors';
@@ -18,63 +18,106 @@ interface FreelancerProfileViewProps {
   footer?: ReactNode;
   /** When provided, shows a back arrow on the header band. */
   onBack?: () => void;
+  /** When provided, shows an edit (pencil) button on the header band — only pass this for the signed-in user's own profile. */
+  onEditPress?: () => void;
 }
 
 /** Profile body with the dark purple header band — screen 6. */
-export function FreelancerProfileView({ user, footer, onBack }: FreelancerProfileViewProps) {
+export function FreelancerProfileView({ user, footer, onBack, onEditPress }: FreelancerProfileViewProps) {
   const insets = useSafeAreaInsets();
   const { colors, typography } = useTheme();
   const styles = getStyles(colors, typography);
 
-  return (
-    <View style={styles.container}>
-      <View style={[styles.headerBand, { paddingTop: insets.top + spacing.lg }]}>
+  const headerContent = (
+    <View style={[styles.headerBand, { paddingTop: insets.top + spacing.lg }, user.coverPhotoUri && styles.headerBandOverlay]}>
+      <View style={styles.headerTopRow}>
         {onBack ? (
-          <Pressable onPress={onBack} hitSlop={8} style={styles.backButton}>
-            <Text style={styles.backArrow}>←</Text>
+          <Pressable onPress={onBack} hitSlop={8} style={styles.headerButton}>
+            <Text style={styles.headerButtonIcon}>←</Text>
+          </Pressable>
+        ) : <View />}
+        {onEditPress ? (
+          <Pressable onPress={onEditPress} hitSlop={8} style={styles.headerButton}>
+            <Text style={styles.headerButtonIcon}>✎</Text>
           </Pressable>
         ) : null}
-        <View style={styles.identityRow}>
-          <Avatar name={user.name} color={user.avatarColor} size={80} />
-          <View style={styles.identityText}>
-            <Text style={styles.name}>{user.name}</Text>
-            <Text style={styles.subtitle}>
-              {user.title} · {user.city}
-            </Text>
-            <View style={styles.headerAvailability}>
-              <AvailabilityDot availability={user.availability} labelColor={colors.success} />
-            </View>
+      </View>
+      <View style={styles.identityRow}>
+        <Avatar name={user.name} color={user.avatarColor} photoUri={user.photoUri} size={80} />
+        <View style={styles.identityText}>
+          <Text style={styles.name}>{user.name}</Text>
+          <Text style={styles.subtitle}>
+            {[user.title, user.city].filter(Boolean).join(' · ')}
+          </Text>
+          <View style={styles.headerAvailability}>
+            <AvailabilityDot availability={user.availability} labelColor={colors.success} />
           </View>
         </View>
       </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      {user.coverPhotoUri ? (
+        <ImageBackground source={{ uri: user.coverPhotoUri }} style={styles.coverImage}>
+          {headerContent}
+        </ImageBackground>
+      ) : (
+        headerContent
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <View style={styles.ratingRow}>
           <StarRating rating={user.rating ?? 0} reviewCount={user.reviewCount} />
         </View>
 
+        {user.bio ? (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.bio}>{user.bio}</Text>
+          </>
+        ) : null}
+
         <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Skills</Text>
         <View style={styles.skills}>
-          {(user.skills ?? []).map((skill) => (
-            <View key={skill} style={styles.skillChip}>
-              <Text style={styles.skillText}>{skill}</Text>
-            </View>
-          ))}
+          {(user.skills ?? []).length > 0 ? (
+            (user.skills ?? []).map((skill) => (
+              <View key={skill} style={styles.skillChip}>
+                <Text style={styles.skillText}>{skill}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No skills listed yet.</Text>
+          )}
         </View>
+
+        {user.experienceLevel ? (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.sectionTitle}>Experience</Text>
+            <Text style={styles.experience}>{user.experienceLevel}</Text>
+          </>
+        ) : null}
 
         <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Credits</Text>
-        {(user.credits ?? []).map((credit) => (
-          <View key={credit.id} style={styles.creditRow}>
-            <Text style={styles.creditProject}>{credit.project}</Text>
-            <Text style={styles.creditMeta}>
-              {credit.role} · {credit.year}
-            </Text>
-          </View>
-        ))}
+        {(user.credits ?? []).length > 0 ? (
+          (user.credits ?? []).map((credit) => (
+            <View key={credit.id} style={styles.creditRow}>
+              <Text style={styles.creditProject}>{credit.project}</Text>
+              <Text style={styles.creditMeta}>
+                {credit.role} · {credit.year}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.emptyText}>No film credits added yet.</Text>
+        )}
 
         <View style={styles.divider} />
 
@@ -93,18 +136,37 @@ const getStyles = (colors: ThemeColors, typography: Typography) =>
       flex: 1,
       backgroundColor: colors.background,
     },
+    coverImage: {
+      width: '100%',
+    },
     headerBand: {
       backgroundColor: colors.profileHeader,
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.xxxl,
       paddingBottom: spacing.xl,
     },
-    backButton: {
+    // A cover photo needs a translucent overlay behind it so white header
+    // text/avatar border stay legible regardless of the photo's own colours.
+    headerBandOverlay: {
+      backgroundColor: 'rgba(0,0,0,0.35)',
+    },
+    headerTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
       marginBottom: spacing.md,
     },
-    backArrow: {
+    headerButton: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.circle,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    headerButtonIcon: {
       color: colors.textOnPrimary,
-      fontSize: 26,
+      fontSize: 18,
       fontWeight: '600',
     },
     identityRow: {
@@ -143,6 +205,18 @@ const getStyles = (colors: ThemeColors, typography: Typography) =>
     sectionTitle: {
       ...typography.headingL,
       marginBottom: spacing.md,
+    },
+    bio: {
+      ...typography.body,
+      color: colors.textPrimary,
+      lineHeight: 22,
+    },
+    experience: {
+      ...typography.body,
+      color: colors.textPrimary,
+    },
+    emptyText: {
+      ...typography.caption,
     },
     skills: {
       flexDirection: 'row',

@@ -25,8 +25,38 @@ async function getCurrentUser(req, res) {
   });
 }
 
+async function getRoles(req, res, next) {
+  try {
+    const result = await authService.listRoles(req.user.id);
+    return sendSuccess(res, 200, 'Roles retrieved.', result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function addRole(req, res, next) {
+  try {
+    const result = await authService.addRole(req.user.id, req.body?.role);
+    return sendSuccess(res, 201, 'Role added.', result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function switchActiveRole(req, res, next) {
+  try {
+    const user = await authService.switchActiveRole(req.user.id, req.body?.role);
+    return sendSuccess(res, 200, 'Active role updated.', { user });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getCurrentUser,
   login,
   register,
+  getRoles,
+  addRole,
+  switchActiveRole,
 };

@@ -1,42 +1,56 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/services/api';
-import { mockUsers } from '@/services/mock';
-import { User } from '@/types';
-import { mockDelay, USE_MOCK } from './helpers';
+import { Role, User } from '@/types';
+import { getAvatarColor } from '@/utils/avatar';
 
-const TALENT_SKILL_MAP: Record<string, string[]> = {
-  Camera: ['Cinematographer', 'Camera Op', 'DOP'],
-  Sound: ['Sound Engineer', 'Sound Recordist'],
-  Editing: ['Video Editor', 'Offline Editor'],
-};
+interface BackendEnvelope<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
 
-/** GET /api/users?role=freelancer&skill=&page= */
+/** Shape returned by GET /api/users and /api/users/:id (see backend/services/authService.js#sanitizeUser). */
+interface BackendUser {
+  id: number;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  role: Role;
+  status: 'active' | 'suspended';
+  createdAt: string;
+}
+
+function mapBackendUser(u: BackendUser): User {
+  return {
+    id: String(u.id),
+    name: u.fullName,
+    email: u.email,
+    role: u.role,
+    avatarColor: getAvatarColor(u.fullName),
+    availability: 'available',
+    skills: [],
+    credits: [],
+    status: u.status,
+  };
+}
+
+/** GET /api/users?role=freelancer&search= — Browse Talent screen. */
 export function useTalent(search: string, category: string) {
   return useQuery({
+    // category isn't sent to the backend (see comment below) but is kept in
+    // the key so callers that expect a refetch on category change still work.
     queryKey: ['talent', search, category],
     queryFn: async () => {
-      if (USE_MOCK) {
-        let list = Object.values(mockUsers).filter((u) => u.role === 'freelancer');
-        if (category !== 'All') {
-          const titles = TALENT_SKILL_MAP[category] ?? [];
-          list = list.filter((u) => titles.includes(u.title ?? ''));
-        }
-        if (search.trim()) {
-          const q = search.toLowerCase();
-          list = list.filter(
-            (u) =>
-              u.name.toLowerCase().includes(q) ||
-              (u.skills ?? []).some((s) => s.toLowerCase().includes(q)) ||
-              (u.title ?? '').toLowerCase().includes(q),
-          );
-        }
-        return mockDelay(list);
-      }
-      const { data } = await api.get<User[]>('/api/users', {
-        params: { role: 'freelancer', skill: category === 'All' ? undefined : category, search },
+      const { data } = await api.get<BackendEnvelope<{ users: BackendUser[] }>>('/api/users', {
+        params: { role: 'freelancer', search: search || undefined },
       });
-      return data;
+      // Category pills (Camera/Sound/Editing/...) have no backend-side
+      // taxonomy to filter against — GET /api/users doesn't return profile
+      // skills — so category filtering is a no-op here rather than silently
+      // hiding every result. Same underlying schema gap noted in
+      // APPLICATION_WORKFLOW.md for job categories.
+      return data.data.users.map(mapBackendUser);
     },
   });
 }
@@ -45,24 +59,27 @@ export function useTalent(search: string, category: string) {
 export function useUser(id: string) {
   return useQuery({
     queryKey: ['user', id],
+    enabled: !!id,
     queryFn: async () => {
-      if (USE_MOCK) {
-        const user = Object.values(mockUsers).find((u) => u.id === id);
-        return mockDelay(user ?? null);
-      }
-      const { data } = await api.get<User>(`/api/users/${id}`);
-      return data;
+      const { data } = await api.get<BackendEnvelope<{ user: BackendUser }>>(`/api/users/${id}`);
+      return mapBackendUser(data.data.user);
     },
   });
 }
 
-/** POST /api/message-requests — send a message request to a freelancer. */
-export function useSendMessageRequest() {
-  return useMutation({
-    mutationFn: async (toUserId: string) => {
-      if (USE_MOCK) return mockDelay({ ok: true });
-      const { data } = await api.post('/api/message-requests', { toUserId });
-      return data;
+/**
+ * GET /api/users?search=&role= — user directory for starting a new
+ * conversation (Messages tab "Discover"). role is one of
+ * 'All' | 'freelancer' | 'producer' | 'client'.
+ */
+export function useAllUsers(search: string, role: string) {
+  return useQuery({
+    queryKey: ['all-users', search, role],
+    queryFn: async () => {
+      const { data } = await api.get<BackendEnvelope<{ users: BackendUser[] }>>('/api/users', {
+        params: { role: role === 'All' ? undefined : role.toLowerCase(), search: search || undefined },
+      });
+      return data.data.users.map(mapBackendUser);
     },
   });
 }

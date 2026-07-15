@@ -1,4 +1,4 @@
-export type Role = 'freelancer' | 'producer' | 'admin';
+export type Role = 'freelancer' | 'producer' | 'admin' | 'client';
 
 export interface User {
   id: string;
@@ -10,7 +10,11 @@ export interface User {
   city?: string;
   /** Short freelancer bio shown on the profile and counted toward completeness. */
   bio?: string;
+  experienceLevel?: string;
   avatarColor?: string;
+  /** Real uploaded photo (data URI) — takes precedence over the initials circle when set. */
+  photoUri?: string | null;
+  coverPhotoUri?: string | null;
   availability?: 'available' | 'on_project';
   rating?: number;
   reviewCount?: number;
@@ -87,6 +91,8 @@ export interface Message {
   senderId: string;
   text: string;
   createdAt: string;
+  /** Has the recipient read this yet — drives the Delivered/Seen indicator under the sender's last message. */
+  isRead: boolean;
 }
 
 export interface MessageRequest {

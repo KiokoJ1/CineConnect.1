@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/services/api';
 
@@ -15,6 +15,10 @@ export interface FreelancerProfile {
   availabilityStatus: string | null;
   rateAmount: number | null;
   rateCurrency: string;
+  paymentModes: string | null;
+  /** Base64 data URI ("data:image/jpeg;base64,...") or null — stored directly in Oracle (see README.md). */
+  profilePhoto: string | null;
+  coverPhoto: string | null;
 }
 
 export interface FilmCredit {
@@ -39,6 +43,56 @@ export function useMyProfile() {
         '/api/profiles/me',
       );
       return data.data.profile;
+    },
+  });
+}
+
+/** GET /api/profiles/:userId — viewing someone else's profile (e.g. a producer looking at a freelancer). */
+export function useProfileByUserId(userId: string) {
+  return useQuery({
+    queryKey: ['profile', userId],
+    enabled: !!userId,
+    retry: false, // a 404 (no profile yet) is an expected, not a transient, failure
+    queryFn: async () => {
+      const { data } = await api.get<BackendEnvelope<{ profile: FreelancerProfile }>>(
+        `/api/profiles/${userId}`,
+      );
+      return data.data.profile;
+    },
+  });
+}
+
+export interface ProfileFormValues {
+  bio: string;
+  location: string;
+  skills: string;
+  experienceLevel: string;
+  /** data URI or null to clear */
+  profilePhoto: string | null;
+  coverPhoto: string | null;
+  // Not edited by the current Edit Profile screen, but the backend's PUT is
+  // a full replace — round-trip these so saving bio/skills/etc doesn't wipe
+  // out rate/availability/portfolio a person set some other way.
+  portfolioUrl?: string;
+  availabilityStatus?: string;
+  rateAmount?: number | null;
+  rateCurrency?: string;
+  paymentModes?: string;
+}
+
+/** POST/PUT /api/profiles/me — full upsert, matching the backend's "send the whole profile" contract. */
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (values: ProfileFormValues) => {
+      const { data } = await api.put<BackendEnvelope<{ profile: FreelancerProfile }>>(
+        '/api/profiles/me',
+        values,
+      );
+      return data.data.profile;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-profile'] });
     },
   });
 }

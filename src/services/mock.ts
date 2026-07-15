@@ -391,6 +391,7 @@ export const mockMessages: Record<string, Message[]> = {
       senderId: 'p_kamau',
       text: 'Hi Brian! Are you available for our feature film shoot Jul 10-15?',
       createdAt: '2025-06-24T09:00:00Z',
+      isRead: true,
     },
     {
       id: 'm2',
@@ -398,6 +399,7 @@ export const mockMessages: Record<string, Message[]> = {
       senderId: 'me',
       text: "Hello! Yes, I'm available. What are the details?",
       createdAt: '2025-06-24T09:02:00Z',
+      isRead: true,
     },
     {
       id: 'm3',
@@ -405,6 +407,7 @@ export const mockMessages: Record<string, Message[]> = {
       senderId: 'p_kamau',
       text: "It's in Nairobi. Rate is KES 8,000/day. Interested?",
       createdAt: '2025-06-24T09:03:00Z',
+      isRead: true,
     },
     {
       id: 'm4',
@@ -412,6 +415,7 @@ export const mockMessages: Record<string, Message[]> = {
       senderId: 'me',
       text: "That works perfectly for me. Let's proceed!",
       createdAt: '2025-06-24T09:05:00Z',
+      isRead: true,
     },
   ],
   conv_nairobi: [
@@ -421,6 +425,7 @@ export const mockMessages: Record<string, Message[]> = {
       senderId: 'p_nairobi',
       text: 'We loved your documentary reel. Can you do a recce next Tuesday?',
       createdAt: '2025-06-24T08:00:00Z',
+      isRead: true,
     },
     {
       id: 'm2',
@@ -428,6 +433,7 @@ export const mockMessages: Record<string, Message[]> = {
       senderId: 'me',
       text: 'Absolutely. Morning works best for me.',
       createdAt: '2025-06-24T08:10:00Z',
+      isRead: true,
     },
     {
       id: 'm3',
@@ -435,6 +441,7 @@ export const mockMessages: Record<string, Message[]> = {
       senderId: 'p_nairobi',
       text: "Great, let's confirm the call time",
       createdAt: '2025-06-24T08:12:00Z',
+      isRead: true,
     },
   ],
 };

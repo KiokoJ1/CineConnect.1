@@ -133,6 +133,21 @@ async function unreadCount(userId) {
   }
 }
 
+async function markThreadRead(userId, otherUserId) {
+  let connection;
+  try {
+    connection = await getConnection();
+    await connection.execute(
+      `UPDATE messages SET is_read = 1
+       WHERE recipient_id = :userId AND sender_id = :otherUserId AND is_read = 0`,
+      { userId, otherUserId },
+      { autoCommit: true },
+    );
+  } finally {
+    if (connection) await connection.close();
+  }
+}
+
 async function countAll() {
   let connection;
   try {
@@ -148,4 +163,4 @@ async function countAll() {
   }
 }
 
-module.exports = { sendMessage, findById, getThread, getInbox, markRead, unreadCount, countAll };
+module.exports = { sendMessage, findById, getThread, getInbox, markRead, markThreadRead, unreadCount, countAll };

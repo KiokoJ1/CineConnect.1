@@ -7,6 +7,7 @@ import { Card } from '@/components/Card';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StarRating } from '@/components/StarRating';
 import { EmptyState } from '@/components/StateViews';
+import { RoleSwitcher } from '@/components/RoleSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ThemeColors } from '@/constants/colors';
 import { spacing } from '@/constants/layout';
@@ -63,6 +64,10 @@ export function ProducerProfileScreen() {
           <DetailRow label="📍 City" value={user.city ?? '—'} />
           <View style={styles.divider} />
           <DetailRow label="✉️ Email" value={user.email} />
+        </Card>
+
+        <Card style={styles.detailCard}>
+          <RoleSwitcher />
         </Card>
 
         <Card style={styles.detailCard}>

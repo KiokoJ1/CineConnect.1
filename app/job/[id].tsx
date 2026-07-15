@@ -92,6 +92,12 @@ export default function JobDetailScreen() {
               {job.producer.jobsPosted} jobs posted · {job.producer.rating.toFixed(1)} ★
             </Text>
           </View>
+          <Button
+            label="Message"
+            variant="outline"
+            compact
+            onPress={() => router.push(`/chat/${job.producer.id}`)}
+          />
         </View>
       </ScrollView>
 
@@ -181,6 +187,8 @@ const getStyles = (colors: ThemeColors, typography: Typography) =>
     producerRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexWrap: 'wrap',
+      rowGap: spacing.md,
     },
     producerText: {
       marginLeft: spacing.md,

@@ -7,16 +7,21 @@ import { useTheme } from '@/hooks/useTheme';
 interface ChatBubbleProps {
   text: string;
   mine: boolean;
+  /** Shown as a small caption under the bubble — pass only for the last bubble in a consecutive group. */
+  time?: string;
+  /** Tightens vertical spacing for bubbles grouped with the one above (same sender, close in time). */
+  grouped?: boolean;
 }
 
-export function ChatBubble({ text, mine }: ChatBubbleProps) {
+export function ChatBubble({ text, mine, time, grouped }: ChatBubbleProps) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   return (
-    <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
+    <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs, grouped && styles.rowGrouped]}>
       <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
         <Text style={[styles.text, mine ? styles.textMine : styles.textTheirs]}>{text}</Text>
       </View>
+      {time ? <Text style={[styles.time, mine ? styles.timeMine : styles.timeTheirs]}>{time}</Text> : null}
     </View>
   );
 }
@@ -24,14 +29,16 @@ export function ChatBubble({ text, mine }: ChatBubbleProps) {
 const getStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     row: {
-      flexDirection: 'row',
       marginBottom: spacing.md,
     },
+    rowGrouped: {
+      marginBottom: 2,
+    },
     rowMine: {
-      justifyContent: 'flex-end',
+      alignItems: 'flex-end',
     },
     rowTheirs: {
-      justifyContent: 'flex-start',
+      alignItems: 'flex-start',
     },
     bubble: {
       maxWidth: '78%',
@@ -58,5 +65,16 @@ const getStyles = (colors: ThemeColors) =>
     },
     textTheirs: {
       color: colors.textPrimary,
+    },
+    time: {
+      fontSize: 11,
+      marginTop: 4,
+      color: colors.textMuted,
+    },
+    timeMine: {
+      marginRight: 4,
+    },
+    timeTheirs: {
+      marginLeft: 4,
     },
   });

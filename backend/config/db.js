@@ -1,6 +1,11 @@
 const oracledb = require('oracledb');
 const env = require('./env');
 
+// Profile/cover photos are stored as base64 data URIs in CLOB columns —
+// fetch CLOBs as plain strings rather than Lob stream objects so model code
+// can treat them like any other text column.
+oracledb.fetchAsString = [oracledb.CLOB];
+
 async function initializePool() {
   await oracledb.createPool({
     user: env.db.user,

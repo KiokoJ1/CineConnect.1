@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { ThemeColors } from '@/constants/colors';
 import { radius } from '@/constants/layout';
@@ -10,20 +10,23 @@ interface AvatarProps {
   size?: number;
   color?: string;
   muted?: boolean;
+  /** A real photo (data URI or remote URL) — shown instead of initials when provided. */
+  photoUri?: string | null;
 }
 
-/** Initials circle. Colour is derived from the name unless overridden. */
-export function Avatar({ name, size = 48, color, muted = false }: AvatarProps) {
+/** Initials circle, or a real photo when one is set. Colour is derived from the name unless overridden. */
+export function Avatar({ name, size = 48, color, muted = false, photoUri }: AvatarProps) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const background = muted ? colors.avatarMuted : color ?? getAvatarColor(name);
+  const circleStyle = { width: size, height: size, borderRadius: radius.circle };
+
+  if (photoUri) {
+    return <Image source={{ uri: photoUri }} style={[styles.circle, circleStyle]} />;
+  }
+
   return (
-    <View
-      style={[
-        styles.circle,
-        { width: size, height: size, borderRadius: radius.circle, backgroundColor: background },
-      ]}
-    >
+    <View style={[styles.circle, circleStyle, { backgroundColor: background }]}>
       <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{getInitials(name)}</Text>
     </View>
   );

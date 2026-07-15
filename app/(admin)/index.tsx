@@ -6,6 +6,8 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { ErrorState, LoadingState } from '@/components/StateViews';
+import { RoleSwitcher } from '@/components/RoleSwitcher';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { ThemeColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/layout';
 import { Typography } from '@/constants/typography';
@@ -143,6 +145,14 @@ export default function AdminPanelScreen() {
           </Pressable>
         ))}
 
+        <Card style={styles.themeCard}>
+          <RoleSwitcher />
+        </Card>
+
+        <Card style={styles.themeCard}>
+          <ThemeToggle />
+        </Card>
+
         <View style={styles.logout}>
           <Button label="Log Out" variant="outline" onPress={onLogout} />
         </View>
@@ -243,6 +253,9 @@ const getStyles = (colors: ThemeColors, typography: Typography) =>
       color: colors.textMuted,
     },
     logout: {
+      marginTop: spacing.xxl,
+    },
+    themeCard: {
       marginTop: spacing.xxl,
     },
   });

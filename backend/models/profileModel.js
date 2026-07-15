@@ -20,6 +20,8 @@ const SELECT_COLS = `
   p.rate_amount,
   p.rate_currency,
   p.payment_modes,
+  p.profile_photo,
+  p.cover_photo,
   p.created_at,
   p.updated_at
 `;
@@ -42,6 +44,8 @@ function mapProfile(row) {
     rateAmount:         row.RATE_AMOUNT   ?? null,
     rateCurrency:       row.RATE_CURRENCY ?? 'KES',
     paymentModes:       row.PAYMENT_MODES ?? null,
+    profilePhoto:       row.PROFILE_PHOTO ?? null,
+    coverPhoto:         row.COVER_PHOTO   ?? null,
     createdAt:          row.CREATED_AT,
     updatedAt:          row.UPDATED_AT,
   };
@@ -89,11 +93,13 @@ async function createProfile(userId, data) {
       `INSERT INTO profiles (
         user_id, bio, location, skills, experience_level,
         portfolio_url, availability_status,
-        rate_amount, rate_currency, payment_modes
+        rate_amount, rate_currency, payment_modes,
+        profile_photo, cover_photo
       ) VALUES (
         :userId, :bio, :location, :skills, :experienceLevel,
         :portfolioUrl, :availabilityStatus,
-        :rateAmount, :rateCurrency, :paymentModes
+        :rateAmount, :rateCurrency, :paymentModes,
+        :profilePhoto, :coverPhoto
       ) RETURNING profile_id INTO :profileId`,
       {
         userId,
@@ -106,6 +112,8 @@ async function createProfile(userId, data) {
         rateAmount:         data.rateAmount  ?? null,
         rateCurrency:       data.rateCurrency || 'KES',
         paymentModes:       data.paymentModes ?? null,
+        profilePhoto:       { val: data.profilePhoto ?? null, type: oracledb.CLOB },
+        coverPhoto:         { val: data.coverPhoto ?? null, type: oracledb.CLOB },
         profileId:          { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       },
       { autoCommit: true },
@@ -130,7 +138,9 @@ async function updateProfile(userId, data) {
         availability_status = :availabilityStatus,
         rate_amount        = :rateAmount,
         rate_currency      = :rateCurrency,
-        payment_modes      = :paymentModes
+        payment_modes      = :paymentModes,
+        profile_photo      = :profilePhoto,
+        cover_photo        = :coverPhoto
        WHERE user_id = :userId`,
       {
         userId,
@@ -143,6 +153,8 @@ async function updateProfile(userId, data) {
         rateAmount:         data.rateAmount  ?? null,
         rateCurrency:       data.rateCurrency || 'KES',
         paymentModes:       data.paymentModes ?? null,
+        profilePhoto:       { val: data.profilePhoto ?? null, type: oracledb.CLOB },
+        coverPhoto:         { val: data.coverPhoto ?? null, type: oracledb.CLOB },
       },
       { autoCommit: true },
     );

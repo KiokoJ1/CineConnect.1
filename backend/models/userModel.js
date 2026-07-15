@@ -13,6 +13,10 @@ function mapUser(row) {
     passwordHash: row.PASSWORD_HASH,
     phoneNumber: row.PHONE_NUMBER,
     role: row.ROLE,
+    // Falls back to `role` for any row where the multi-role migration
+    // hasn't run yet / hasn't backfilled this account — keeps every
+    // existing single-role account working unchanged either way.
+    activeRole: row.ACTIVE_ROLE || row.ROLE,
     status: row.STATUS,
     createdAt: row.CREATED_AT,
     updatedAt: row.UPDATED_AT,
@@ -26,7 +30,7 @@ async function findByEmail(email) {
     connection = await getConnection();
     const result = await connection.execute(
       `
-        SELECT user_id, full_name, email, phone_number, role, password_hash, created_at, status, updated_at
+        SELECT user_id, full_name, email, phone_number, role, active_role, password_hash, created_at, status, updated_at
         FROM users
         WHERE LOWER(email) = LOWER(:email)
       `,
@@ -49,7 +53,7 @@ async function findById(id) {
     connection = await getConnection();
     const result = await connection.execute(
       `
-        SELECT user_id, full_name, email, phone_number, role, password_hash, created_at, status, updated_at
+        SELECT user_id, full_name, email, phone_number, role, active_role, password_hash, created_at, status, updated_at
         FROM users
         WHERE user_id = :id
       `,
@@ -72,8 +76,8 @@ async function createUser({ fullName, email, passwordHash, phoneNumber, role }) 
     connection = await getConnection();
     const result = await connection.execute(
       `
-        INSERT INTO users (full_name, email, password_hash, phone_number, role)
-        VALUES (:fullName, LOWER(:email), :passwordHash, :phoneNumber, :role)
+        INSERT INTO users (full_name, email, password_hash, phone_number, role, active_role)
+        VALUES (:fullName, LOWER(:email), :passwordHash, :phoneNumber, :role, :role)
         RETURNING user_id INTO :id
       `,
       {
@@ -150,7 +154,7 @@ async function findAll({ role, search } = {}) {
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await connection.execute(
       `
-        SELECT user_id, full_name, email, phone_number, role, status, created_at, updated_at
+        SELECT user_id, full_name, email, phone_number, role, active_role, status, created_at, updated_at
         FROM users
         ${where}
         ORDER BY created_at DESC
@@ -181,6 +185,21 @@ async function updateStatus(id, status) {
   }
 }
 
+async function setActiveRole(userId, role) {
+  let connection;
+  try {
+    connection = await getConnection();
+    await connection.execute(
+      `UPDATE users SET active_role = :role, updated_at = SYSTIMESTAMP WHERE user_id = :userId`,
+      { role, userId },
+      { autoCommit: true },
+    );
+    return findById(userId);
+  } finally {
+    if (connection) await connection.close();
+  }
+}
+
 module.exports = {
   createUser,
   findByEmail,
@@ -189,4 +208,5 @@ module.exports = {
   countsByRole,
   findAll,
   updateStatus,
+  setActiveRole,
 };

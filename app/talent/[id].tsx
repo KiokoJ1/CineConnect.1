@@ -1,18 +1,22 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { useSendMessageRequest, useUser } from '@/api/users';
+import { parseSkills, useProfileByUserId } from '@/api/profile';
+import { useUser } from '@/api/users';
 import { BackHeader } from '@/components/BackHeader';
 import { Button } from '@/components/Button';
 import { FreelancerProfileView } from '@/components/FreelancerProfileView';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { EmptyState, LoadingState } from '@/components/StateViews';
+import { User } from '@/types';
 
 export default function TalentProfileScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: user, isLoading } = useUser(id);
-  const sendRequest = useSendMessageRequest();
+  // A brand-new account may not have filled in a profile yet — that 404 is
+  // expected, not an error, so the base identity from useUser still renders.
+  const { data: profile } = useProfileByUserId(id);
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   if (isLoading) {
@@ -32,25 +36,24 @@ export default function TalentProfileScreen() {
     );
   }
 
-  const onMessage = () => {
-    sendRequest.mutate(user.id, {
-      onSuccess: () =>
-        Alert.alert('Request sent', `Your message request to ${user.name} has been sent.`),
-      onError: () => Alert.alert('Could not send', 'Please try again.'),
-    });
+  const displayUser: User = {
+    ...user,
+    bio: profile?.bio ?? undefined,
+    city: profile?.location ?? user.city,
+    experienceLevel: profile?.experienceLevel ?? undefined,
+    skills: parseSkills(profile?.skills),
+    dayRate: profile?.rateAmount ?? user.dayRate,
+    photoUri: profile?.profilePhoto,
+    coverPhotoUri: profile?.coverPhoto,
   };
 
   return (
     <FreelancerProfileView
-      user={user}
+      user={displayUser}
       onBack={goBack}
       footer={
         <View style={styles.footer}>
-          <Button
-            label="✉️  Send Message Request"
-            onPress={onMessage}
-            loading={sendRequest.isPending}
-          />
+          <Button label="✉️  Message" onPress={() => router.push(`/chat/${user.id}`)} />
         </View>
       }
     />

@@ -16,9 +16,10 @@ import { login } from '@/api/auth';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { ScreenContainer } from '@/components/ScreenContainer';
-import { colors } from '@/constants/colors';
+import { ThemeColors } from '@/constants/colors';
 import { spacing } from '@/constants/layout';
-import { typography } from '@/constants/typography';
+import { Typography } from '@/constants/typography';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { homeRouteForRole } from '@/utils/routing';
 import { isValidLoginIdentifier } from '@/utils/validation';
@@ -31,6 +32,8 @@ interface Errors {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { colors, typography } = useTheme();
+  const styles = getStyles(colors, typography);
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -120,7 +123,8 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   flex: { flex: 1 },
   content: {
     flexGrow: 1,

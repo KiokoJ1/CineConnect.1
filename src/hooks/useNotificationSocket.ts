@@ -10,12 +10,13 @@ interface SocketNotification {
 }
 
 /**
- * Listens for the backend's `notify()`-pushed 'notification' socket event
- * (see backend/services/notificationService.js) and invalidates the
- * relevant query caches so screens update immediately — not just the
- * notifications list, but the producer's job/application counts and the
- * freelancer's application status too, without waiting for the next manual
- * refresh or the 30s notifications poll.
+ * Listens for the backend's real-time socket events — both `notify()`-pushed
+ * 'notification' events (see backend/services/notificationService.js) and
+ * 'message' events (see backend/services/socketService.js) — and invalidates
+ * the relevant query caches so screens update immediately: the notification
+ * bell/list, the producer's job/application counts, the freelancer's
+ * application list, and the Messages tab's conversation list, all without
+ * waiting for a manual refresh or the notifications poll.
  */
 export function useNotificationSocket() {
   const qc = useQueryClient();
@@ -49,8 +50,19 @@ export function useNotificationSocket() {
     };
 
     socket.on('notification', onNotification);
+
+    const onMessage = () => {
+      // A specific open chat screen reconciles its own message list; this
+      // keeps the Messages tab's conversation list (last message, unread
+      // dot, ordering) live even when no thread is open.
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      qc.invalidateQueries({ queryKey: ['unread-message-count'] });
+    };
+    socket.on('message', onMessage);
+
     return () => {
       socket.off('notification', onNotification);
+      socket.off('message', onMessage);
     };
   }, [token, qc]);
 }

@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "CineConnectKE",
+    "slug": "cineconnectke",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "cineconnectke",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#1A1B2E",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ke.cineconnect.app"
+    },
+    "android": {
+      "package": "ke.cineconnect.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1A1B2E"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

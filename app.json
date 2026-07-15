@@ -28,7 +28,13 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CineConnectKE uses your photo library to set your profile and cover photos."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

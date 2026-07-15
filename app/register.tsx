@@ -16,9 +16,10 @@ import { register } from '@/api/auth';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { ScreenContainer } from '@/components/ScreenContainer';
-import { colors } from '@/constants/colors';
+import { ThemeColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/layout';
-import { typography } from '@/constants/typography';
+import { Typography } from '@/constants/typography';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { homeRouteForRole } from '@/utils/routing';
 import { isValidEmail } from '@/utils/validation';
@@ -41,6 +42,8 @@ const ROLES: { key: SignupRole; label: string; emoji: string }[] = [
 export default function RegisterScreen() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const { colors, typography } = useTheme();
+  const styles = getStyles(colors, typography);
 
   const [role, setRole] = useState<SignupRole>('freelancer');
   const [name, setName] = useState('');
@@ -169,7 +172,8 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   flex: { flex: 1 },
   content: {
     flexGrow: 1,

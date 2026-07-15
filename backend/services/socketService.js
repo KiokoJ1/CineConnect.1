@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const { verifyToken } = require('../utils/jwt');
+const messageModel = require('../models/messageModel');
 
 let io = null;
 
@@ -32,6 +33,37 @@ function initSocket(httpServer) {
 
   io.on('connection', (socket) => {
     socket.join(userRoom(socket.data.userId));
+
+    // Real-time chat: the message is always persisted to Oracle first (the
+    // durable record), then broadcast to both parties — so a chat works
+    // identically whether or not the other side happens to be connected
+    // right now, and refreshing the thread always matches what was shown live.
+    socket.on('message', async ({ recipientId, body, projectId }, ack) => {
+      try {
+        if (!recipientId || !body?.trim()) return;
+        const message = await messageModel.sendMessage({
+          senderId: socket.data.userId,
+          recipientId: Number(recipientId),
+          body: body.trim(),
+          projectId: projectId ? Number(projectId) : null,
+        });
+        // Only push to the recipient — the sender already has an optimistic
+        // bubble on screen and reconciles it via the ack below. Echoing the
+        // same message back to the sender's own socket raced against that
+        // reconciliation and could leave two list rows with the same id
+        // (the "duplicate key" warning/crash in the chat screen).
+        emitToUser(message.recipientId, 'message', message);
+        if (typeof ack === 'function') ack({ ok: true, message });
+      } catch (err) {
+        if (typeof ack === 'function') ack({ ok: false, error: err.message });
+      }
+    });
+
+    // Typing indicator — ephemeral, not persisted.
+    socket.on('typing', ({ recipientId, typing }) => {
+      if (!recipientId) return;
+      emitToUser(Number(recipientId), 'typing', { fromUserId: socket.data.userId, typing: !!typing });
+    });
   });
 
   return io;

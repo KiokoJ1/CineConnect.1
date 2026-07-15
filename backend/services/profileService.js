@@ -26,8 +26,15 @@ function normalize(payload) {
       ? String(payload.rateCurrency).trim().toUpperCase()
       : 'KES',
     paymentModes: payload.paymentModes ? String(payload.paymentModes).trim() : null,
+    // Base64 data URIs (e.g. "data:image/jpeg;base64,...") stored directly
+    // in Oracle CLOB columns rather than an external file store — see
+    // README.md's "Editable profile" section for why.
+    profilePhoto: payload.profilePhoto ? String(payload.profilePhoto) : null,
+    coverPhoto:   payload.coverPhoto   ? String(payload.coverPhoto)   : null,
   };
 }
+
+const MAX_PHOTO_CHARS = 6_000_000; // ~4.5MB decoded — generous for a compressed mobile photo
 
 function validate(data) {
   const errors = [];
@@ -43,6 +50,15 @@ function validate(data) {
   if (!VALID_CURRENCIES.includes(data.rateCurrency))
     errors.push(`Currency must be one of: ${VALID_CURRENCIES.join(', ')}.`);
   if (data.paymentModes  && data.paymentModes.length  > 255)  errors.push('Payment modes cannot exceed 255 characters.');
+  for (const [field, label] of [['profilePhoto', 'Profile photo'], ['coverPhoto', 'Cover photo']]) {
+    const value = data[field];
+    if (!value) continue;
+    if (!/^data:image\/(jpeg|jpg|png|webp);base64,/.test(value)) {
+      errors.push(`${label} must be a base64-encoded JPEG/PNG/WebP image.`);
+    } else if (value.length > MAX_PHOTO_CHARS) {
+      errors.push(`${label} is too large — please use a smaller image.`);
+    }
+  }
   return errors;
 }
 
