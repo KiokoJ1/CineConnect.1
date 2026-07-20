@@ -15,6 +15,11 @@ export interface User {
   /** Real uploaded photo (data URI) — takes precedence over the initials circle when set. */
   photoUri?: string | null;
   coverPhotoUri?: string | null;
+  followerCount?: number;
+  followingCount?: number;
+  /** Applications with status 'hired' — closest real signal to "completed jobs" the schema supports. */
+  completedJobs?: number;
+  totalApplications?: number;
   availability?: 'available' | 'on_project';
   rating?: number;
   reviewCount?: number;
@@ -113,7 +118,8 @@ export type NotificationType =
   | 'profile_viewed'
   | 'new_application'
   | 'application_accepted'
-  | 'application_declined';
+  | 'application_declined'
+  | 'new_follower';
 
 export interface AppNotification {
   id: string;

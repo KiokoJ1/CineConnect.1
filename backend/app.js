@@ -12,6 +12,7 @@ const creditRoutes      = require('./routes/creditRoutes');
 const adminRoutes       = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const userRoutes        = require('./routes/userRoutes');
+const followRoutes      = require('./routes/followRoutes');
 
 const { sendSuccess }                    = require('./utils/apiResponse');
 const { notFoundHandler, errorHandler }  = require('./middleware/errorHandler');
@@ -44,6 +45,7 @@ app.use('/api/credits',      creditRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users',        userRoutes);
+app.use('/api/follows',      followRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

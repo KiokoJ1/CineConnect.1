@@ -118,22 +118,89 @@ async function findById(projectId) {
   }
 }
 
-async function findAllOpen() {
+const MAX_LIMIT = 100;
+
+/**
+ * Job search/filter/pagination for the open-jobs feed.
+ *
+ * `search` matches title, description, OR role_needed (broad match — jobs
+ * have no separate "skills" field, role_needed is the closest equivalent,
+ * consistent with how the frontend already treats it — see
+ * APPLICATION_WORKFLOW.md's category-mapping note). `role`/`location` are
+ * narrower single-field filters; `minBudget`/`maxBudget` filter the budget
+ * range.
+ *
+ * Backward compatible by default: called with no args, this returns every
+ * open project unbounded, exactly as before — the frontend currently
+ * fetches the full list and paginates client-side
+ * (APPLICATION_WORKFLOW.md). Passing `page`/`limit` opts into real
+ * server-side pagination instead.
+ */
+async function findAllOpen({ search, role, location, minBudget, maxBudget, page, limit } = {}) {
   let connection;
 
   try {
     connection = await getConnection();
-    const result = await connection.execute(
-      `
-        ${baseSelect}
-        WHERE p.status = 'open'
-        ORDER BY p.created_at DESC
-      `,
-      {},
-      { outFormat: oracledb.OUT_FORMAT_OBJECT },
-    );
+    const conditions = [`p.status = 'open'`];
+    const binds = {};
 
-    return result.rows.map(mapProject);
+    if (search) {
+      conditions.push(
+        '(LOWER(p.title) LIKE LOWER(:search) OR LOWER(p.description) LIKE LOWER(:search) OR LOWER(p.role_needed) LIKE LOWER(:search))',
+      );
+      binds.search = `%${search}%`;
+    }
+    if (role) {
+      conditions.push('LOWER(p.role_needed) LIKE LOWER(:role)');
+      binds.role = `%${role}%`;
+    }
+    if (location) {
+      conditions.push('LOWER(p.location) LIKE LOWER(:location)');
+      binds.location = `%${location}%`;
+    }
+    if (minBudget != null) {
+      conditions.push('p.budget >= :minBudget');
+      binds.minBudget = Number(minBudget);
+    }
+    if (maxBudget != null) {
+      conditions.push('p.budget <= :maxBudget');
+      binds.maxBudget = Number(maxBudget);
+    }
+
+    const where = `WHERE ${conditions.join(' AND ')}`;
+    const fromClause = `FROM projects p JOIN users u ON u.user_id = p.owner_id ${where}`;
+
+    if (!page && !limit) {
+      // No pagination requested — old behavior, unbounded.
+      const result = await connection.execute(
+        `${baseSelect}${where} ORDER BY p.created_at DESC`,
+        binds,
+        { outFormat: oracledb.OUT_FORMAT_OBJECT },
+      );
+      return { projects: result.rows.map(mapProject), total: result.rows.length, page: 1, limit: result.rows.length, totalPages: 1 };
+    }
+
+    const effectiveLimit = Math.min(Number(limit) || 20, MAX_LIMIT);
+    const effectivePage = Math.max(Number(page) || 1, 1);
+    const offset = (effectivePage - 1) * effectiveLimit;
+
+    const [countResult, rowsResult] = await Promise.all([
+      connection.execute(`SELECT COUNT(*) AS cnt ${fromClause}`, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT }),
+      connection.execute(
+        `${baseSelect}${where} ORDER BY p.created_at DESC OFFSET :offset ROWS FETCH NEXT :effectiveLimit ROWS ONLY`,
+        { ...binds, offset, effectiveLimit },
+        { outFormat: oracledb.OUT_FORMAT_OBJECT },
+      ),
+    ]);
+
+    const total = Number(countResult.rows[0]?.CNT ?? 0);
+    return {
+      projects: rowsResult.rows.map(mapProject),
+      total,
+      page: effectivePage,
+      limit: effectiveLimit,
+      totalPages: Math.max(Math.ceil(total / effectiveLimit), 1),
+    };
   } finally {
     if (connection) {
       await connection.close();

@@ -60,9 +60,22 @@ export function useNotificationSocket() {
     };
     socket.on('message', onMessage);
 
+    const onFollowUpdate = (payload: { userId: number; followerCount: number; followingCount: number }) => {
+      // Pushed only to the person being followed/unfollowed — their own
+      // profile screen (if open) reflects the new count immediately,
+      // without them needing to be the one who triggered the change.
+      qc.setQueryData(['follow-status', String(payload.userId)], (prev: unknown) =>
+        prev && typeof prev === 'object'
+          ? { ...prev, followerCount: payload.followerCount, followingCount: payload.followingCount }
+          : prev,
+      );
+    };
+    socket.on('follow_update', onFollowUpdate);
+
     return () => {
       socket.off('notification', onNotification);
       socket.off('message', onMessage);
+      socket.off('follow_update', onFollowUpdate);
     };
   }, [token, qc]);
 }

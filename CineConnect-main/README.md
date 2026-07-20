@@ -1,121 +1,31 @@
-# CineConnectKE
+## 🎨 UI/UX Design Phase
 
-A React Native (Expo) mobile app connecting Kenyan film-industry freelancers with producers.
+### 🔗 Interactive Prototype
+[Click here to view the CineConnectKE Interactive Flow on Figma](https://www.figma.com/proto/bPUFUMQxap6qSj3scdVjEb/CineConnectKe?node-id=1-2&p=f&viewport=636%2C594%2C0.5&t=2GVweTmpkSQM4QTU-1&scaling=min-zoom&content-scaling=fixed&starting-point-node-id=1%3A2&show-proto-sidebar=1&page-id=0%3A1)
 
-> The original UI/UX design reference (Figma export, 18 screens) lives in
-> [`CineConnect-main/Design`](./CineConnect-main/Design).
+---
 
-## Tech stack
+### 🚀 Phase 1: Onboarding & Authentication
+| Splash Screen | Onboarding | Registration | Login |
+| :---: | :---: | :---: | :---: |
+| ![Splash](./Design/01_splash%201.jpg) | ![Onboarding](./Design/02_onboarding%201.jpg) | ![Register](./Design/03_register%201.jpg) | ![Login](./Design/04_login%201.jpg) |
 
-- **Expo SDK 52** + **expo-router** (file-based navigation)
-- **Zustand** for global auth state
-- **React Query + Axios** for data fetching (2-minute `staleTime`)
-- **AsyncStorage** for JWT persistence
-- **Socket.io-client** for real-time chat
-- TypeScript throughout, `StyleSheet.create` only (all colour via `src/constants/colors.ts`)
+### 🎭 Phase 2: Freelancer Experience
+| Home Feed | My Profile | Job Details | Dashboard |
+| :---: | :---: | :---: | :---: |
+| ![Home](./Design/05_freelancer_home%201.jpg) | ![Profile](./Design/06_freelancer_profile%201.jpg) | ![Details](./Design/07_job_detail%201.jpg) | ![Stats](./Design/08_dashboard%201.jpg) |
 
-## Getting started
+### 🎬 Phase 3: Producer & Recruitment
+| Producer Home | Post a Job | View Applications | Browse Talent |
+| :---: | :---: | :---: | :---: |
+| ![Home](./Design/09_producer_home%201.jpg) | ![Post](./Design/10_post_job%201.jpg) | ![Apps](./Design/11_applications%201.jpg) | ![Search](./Design/12_browse_talent%201.jpg) |
 
-```bash
-npm install
-npm start          # then press i (iOS), a (Android), or scan the QR with Expo Go
-```
+### 💬 Phase 4: Communication & Alerts
+| Inbox | Active Chat | Message Request | Notifications |
+| :---: | :---: | :---: | :---: |
+| ![Inbox](./Design/13_message_inbox%201.jpg) | ![Chat](./Design/14_chat%201.jpg) | ![Request](./Design/15_message_request%201.jpg) | ![Alerts](./Design/16_notifications%201.jpg) |
 
-### Environment
-
-Configuration is read from `.env` (`EXPO_PUBLIC_*` variables):
-
-| Variable | Purpose |
-| --- | --- |
-| `EXPO_PUBLIC_API_URL` | Base URL for the REST API (defaults to `http://localhost:5000`, the backend's default port — see [Backend integration](#backend-integration)) |
-| `EXPO_PUBLIC_SOCKET_URL` | Socket.io server for chat |
-| `EXPO_PUBLIC_USE_MOCK` | `true` (default) serves the bundled demo dataset for the screens that still have no backend route: **admin extras, browse-talent, and message requests**. Jobs, applications, notifications, and chat/messaging now always call the live backend regardless of this flag — see below. |
-
-### Backend integration
-
-This app talks to the companion Node.js + Express + Oracle API in
-[`backend/`](./backend). As of this update:
-
-- **Auth (login/register), the Freelancer Dashboard, Jobs, Applications,
-  Notifications, and Chat/Messaging always hit the live backend** — there
-  is no mock fallback for these. You need the backend running (and a
-  reachable Oracle DB) to use the app at all in practice.
-- **Admin extras, browse-talent, and message requests** still run on the
-  bundled mock dataset via `EXPO_PUBLIC_USE_MOCK`, since those screens'
-  backend routes aren't wired up yet.
-
-For how messaging specifically works — conversation list, chat bubbles,
-Seen/Delivered receipts, typing indicators, presence, and the Socket.IO
-wiring — see **[`MESSAGING_UI.md`](./MESSAGING_UI.md)**.
-
-Accounts can now hold more than one role (Producer / Freelancer / Client)
-and switch between them from Profile without logging out — see
-**[`MULTI_ROLE_SYSTEM.md`](./MULTI_ROLE_SYSTEM.md)**.
-
-Profiles are now fully editable — profile photo, cover photo, bio,
-location, experience level, skills, and film-credit experience entries, all
-saved to Oracle — see **[`PROFILE_EDITING.md`](./PROFILE_EDITING.md)**. This
-adds `expo-image-picker` as a new dependency; run
-`npx expo install expo-image-picker` after pulling this change.
-
-Portfolios support images, videos, and a Featured Work section, loaded from
-Oracle — see **[`PORTFOLIO.md`](./PORTFOLIO.md)**.
-
-Talent profiles now have Follow/Unfollow (with live follower counts),
-Message, and Hire actions — see **[`FOLLOW_SOCIAL.md`](./FOLLOW_SOCIAL.md)**.
-This also fixed `useUser`/`useTalent`, which were previously calling a
-`/api/users` endpoint that doesn't exist — they now call the real
-`/api/profiles/*` endpoints, so viewing a talent profile / browsing talent
-against the live backend actually works now.
-
-To run against the live backend:
-
-```bash
-# 1. Backend — configure Oracle + JWT, then start it
-cd backend
-cp .env.example .env        # fill in DB_USER, DB_PASSWORD, DB_CONNECT_STRING, JWT_SECRET
-npm install
-npm run dev                  # http://localhost:5000
-
-# 2. Frontend — point at it (already the default in .env)
-cd ..
-npm start
-```
-
-There are no more canned demo logins — since auth is real now, you sign in
-with an account that actually exists in the `users` table (register one via
-the app, or insert one directly in Oracle).
-
-For the full list of what changed, which endpoints power which screen, which
-Oracle tables are queried, and known gaps, see
-**[`DASHBOARD_UPDATE.md`](./DASHBOARD_UPDATE.md)**.
-
-## Project structure
-
-```
-app/                       expo-router routes
-  _layout.tsx              providers + auth route guard
-  index.tsx                splash
-  onboarding / login / register
-  (freelancer)/            freelancer tab group (home, search, chat, notifs, profile)
-  (producer)/              producer tab group
-  (admin)/                 admin stack (panel + manage users)
-  job/[id], talent/[id], post-job, applications/[jobId], chat/[id], requests
-backend/                   Node.js + Express + Oracle API (see backend/README or DASHBOARD_UPDATE.md)
-src/
-  api/                     React Query hooks + REST calls (with mock fallback)
-  components/              shared UI (Button, Input, Card, cards, chat, …)
-  constants/               design tokens (colors, typography, layout, categories)
-  screens/                 screen bodies shared across route files
-  services/                axios client (+ JWT refresh interceptor), socket, query client, mock data
-  store/                   Zustand auth store
-  types/                   domain models
-  utils/                   avatar, formatting, routing helpers
-```
-
-## Verifying
-
-```bash
-npm run typecheck          # tsc --noEmit
-npx expo-doctor            # dependency / config checks
-```
+### 🛠️ Phase 5: Administration
+| Admin Dashboard | User Management |
+| :---: | :---: |
+| ![Admin Dash](./Design/17_admin_dashboard%201.jpg) | ![Admin Users](./Design/18_admin_users%201.jpg) |

@@ -135,7 +135,23 @@ async function countsByRole() {
   }
 }
 
-async function findAll({ role, search } = {}) {
+const MAX_LIMIT = 100;
+
+/**
+ * User search/filter/pagination — powers GET /api/users (discovery, Browse
+ * Talent) and GET /api/admin/users.
+ *
+ * `search` matches name, skills, OR location (profiles are LEFT JOINed —
+ * users without a profile row still match on name). `skills`/`location`
+ * are separate, narrower filters for when a caller wants just one of those
+ * dimensions rather than a broad OR match.
+ *
+ * Backward compatible by default: existing callers that don't pass
+ * page/limit get `limit = 200` (the same cap this endpoint always had), so
+ * nothing that worked before changes unless a caller opts into real
+ * pagination by passing `page`/`limit` explicitly.
+ */
+async function findAll({ role, search, skills, location, page, limit } = {}) {
   let connection;
   try {
     connection = await getConnection();
@@ -143,28 +159,60 @@ async function findAll({ role, search } = {}) {
     const binds = {};
 
     if (role) {
-      conditions.push('LOWER(role) = LOWER(:role)');
+      conditions.push('LOWER(u.role) = LOWER(:role)');
       binds.role = role;
     }
     if (search) {
-      conditions.push('LOWER(full_name) LIKE LOWER(:search)');
+      conditions.push(
+        '(LOWER(u.full_name) LIKE LOWER(:search) OR LOWER(p.skills) LIKE LOWER(:search) OR LOWER(p.location) LIKE LOWER(:search))',
+      );
       binds.search = `%${search}%`;
+    }
+    if (skills) {
+      conditions.push('LOWER(p.skills) LIKE LOWER(:skills)');
+      binds.skills = `%${skills}%`;
+    }
+    if (location) {
+      conditions.push('LOWER(p.location) LIKE LOWER(:location)');
+      binds.location = `%${location}%`;
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const result = await connection.execute(
-      `
-        SELECT user_id, full_name, email, phone_number, role, active_role, status, created_at, updated_at
-        FROM users
-        ${where}
-        ORDER BY created_at DESC
-        FETCH FIRST 200 ROWS ONLY
-      `,
-      binds,
-      { outFormat: oracledb.OUT_FORMAT_OBJECT },
-    );
+    const fromClause = `FROM users u LEFT JOIN profiles p ON p.user_id = u.user_id ${where}`;
 
-    return result.rows.map(mapUser);
+    // No explicit limit -> preserve the old unpaginated cap (200) exactly.
+    // Explicit limit -> real pagination, capped at MAX_LIMIT so a caller
+    // can't request an unbounded page.
+    const effectiveLimit = limit ? Math.min(Number(limit), MAX_LIMIT) : 200;
+    const effectivePage = Math.max(Number(page) || 1, 1);
+    const offset = (effectivePage - 1) * effectiveLimit;
+
+    const [countResult, rowsResult] = await Promise.all([
+      connection.execute(
+        `SELECT COUNT(*) AS cnt ${fromClause}`,
+        binds,
+        { outFormat: oracledb.OUT_FORMAT_OBJECT },
+      ),
+      connection.execute(
+        `
+          SELECT u.user_id, u.full_name, u.email, u.phone_number, u.role, u.active_role, u.status, u.created_at, u.updated_at
+          ${fromClause}
+          ORDER BY u.created_at DESC
+          OFFSET :offset ROWS FETCH NEXT :effectiveLimit ROWS ONLY
+        `,
+        { ...binds, offset, effectiveLimit },
+        { outFormat: oracledb.OUT_FORMAT_OBJECT },
+      ),
+    ]);
+
+    const total = Number(countResult.rows[0]?.CNT ?? 0);
+    return {
+      users: rowsResult.rows.map(mapUser),
+      total,
+      page: effectivePage,
+      limit: effectiveLimit,
+      totalPages: Math.max(Math.ceil(total / effectiveLimit), 1),
+    };
   } finally {
     if (connection) await connection.close();
   }

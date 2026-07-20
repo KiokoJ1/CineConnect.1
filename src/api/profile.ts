@@ -116,3 +116,28 @@ export function parseSkills(skills: string | null | undefined): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
 }
+
+export interface ProfileStats {
+  avgRating: number;
+  totalReviews: number;
+  /** Applications with status 'hired' — the closest real signal to "completed jobs" the schema supports. */
+  completedJobs: number;
+  totalApplications: number;
+}
+
+/**
+ * GET /api/profiles/:userId/stats — ratings, reviews, completed jobs, and
+ * applications for any user's profile. Works the same for the signed-in
+ * user's own profile and for a producer viewing a freelancer's profile —
+ * unlike GET /api/analytics/me, this isn't limited to "me".
+ */
+export function useProfileStats(userId: string) {
+  return useQuery({
+    queryKey: ['profile-stats', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data } = await api.get<BackendEnvelope<ProfileStats>>(`/api/profiles/${userId}/stats`);
+      return data.data;
+    },
+  });
+}

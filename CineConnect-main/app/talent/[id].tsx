@@ -99,8 +99,8 @@ export default function TalentProfileScreen() {
           </Text>
         </View>
       }
-      footer={
-        <View style={styles.footer}>
+      actions={
+        <View style={styles.actions}>
           <Button
             label={followStatus?.isFollowing ? 'Following' : 'Follow'}
             variant={followStatus?.isFollowing ? 'success-outline' : 'primary'}
@@ -122,14 +122,14 @@ export default function TalentProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  footer: {
+  actions: {
     marginTop: 0,
   },
   gap: {
     height: spacing.md,
   },
   followCounts: {
-    marginBottom: spacing.md,
+    marginBottom: 0,
   },
   followCountsText: {
     fontSize: 14,

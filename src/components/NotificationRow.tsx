@@ -20,6 +20,7 @@ const getIcons = (colors: ThemeColors): Record<NotificationType, { emoji: string
   new_application: { emoji: '📥', tint: colors.infoSoft },
   application_accepted: { emoji: '✅', tint: colors.successSoft },
   application_declined: { emoji: '📪', tint: colors.border },
+  new_follower: { emoji: '👋', tint: colors.primarySoft },
 });
 
 export function NotificationRow({ notification, onPress }: NotificationRowProps) {

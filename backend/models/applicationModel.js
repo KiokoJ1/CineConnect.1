@@ -231,6 +231,28 @@ async function countByProject(projectId) {
   }
 }
 
+/** Total applications by a freelancer, optionally filtered to one status (e.g. 'hired' for "completed jobs"). */
+async function countByFreelancer(freelancerId, status) {
+  let connection;
+  try {
+    connection = await getConnection();
+    const result = await connection.execute(
+      `
+        SELECT COUNT(*) AS cnt FROM applications
+        WHERE freelancer_id = :freelancerId
+        ${status ? 'AND status = :status' : ''}
+      `,
+      status ? { freelancerId, status } : { freelancerId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT },
+    );
+    return Number(result.rows[0]?.CNT ?? 0);
+  } finally {
+    if (connection) {
+      await connection.close();
+    }
+  }
+}
+
 module.exports = {
   createApplication,
   findByFreelancer,
@@ -240,4 +262,5 @@ module.exports = {
   updateStatus,
   countAll,
   countByProject,
+  countByFreelancer,
 };

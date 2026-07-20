@@ -12,8 +12,20 @@ async function createProject(req, res, next) {
 
 async function listOpenProjects(req, res, next) {
   try {
-    const projects = await projectService.listOpenProjects();
-    return sendSuccess(res, 200, 'Open projects retrieved successfully.', { projects });
+    const { search, role, location, minBudget, maxBudget, page, limit } = req.query;
+    const result = await projectService.listOpenProjects({
+      search: search || undefined,
+      role: role || undefined,
+      location: location || undefined,
+      minBudget: minBudget || undefined,
+      maxBudget: maxBudget || undefined,
+      page,
+      limit,
+    });
+    return sendSuccess(res, 200, 'Open projects retrieved successfully.', {
+      projects: result.projects,
+      pagination: { total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages },
+    });
   } catch (error) {
     return next(error);
   }

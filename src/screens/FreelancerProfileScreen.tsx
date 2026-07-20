@@ -2,7 +2,9 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { parseSkills, useMyCredits, useMyProfile } from '@/api/profile';
+import { parseSkills, useMyCredits, useMyProfile, useProfileStats } from '@/api/profile';
+import { useFollowStatus } from '@/api/follows';
+import { useReviews } from '@/api/reviews';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { FreelancerProfileView } from '@/components/FreelancerProfileView';
@@ -24,6 +26,9 @@ export function FreelancerProfileScreen() {
   const [tab, setTab] = useState<'profile' | 'dashboard'>('profile');
   const { data: profile } = useMyProfile();
   const { data: credits } = useMyCredits();
+  const { data: followStatus } = useFollowStatus(user?.id ?? '');
+  const { data: profileStats } = useProfileStats(user?.id ?? '');
+  const { data: reviewsData } = useReviews(user?.id ?? '');
 
   const onLogout = async () => {
     disconnectSocket();
@@ -58,6 +63,12 @@ export function FreelancerProfileScreen() {
     dayRate: profile?.rateAmount ?? user.dayRate,
     photoUri: profile?.profilePhoto,
     coverPhotoUri: profile?.coverPhoto,
+    followerCount: followStatus?.followerCount,
+    followingCount: followStatus?.followingCount,
+    rating: profileStats?.avgRating ?? reviewsData?.avgRating,
+    reviewCount: profileStats?.totalReviews ?? reviewsData?.totalReviews,
+    completedJobs: profileStats?.completedJobs,
+    totalApplications: profileStats?.totalApplications,
   };
 
   if (tab === 'dashboard') {
@@ -81,6 +92,7 @@ export function FreelancerProfileScreen() {
   return (
     <FreelancerProfileView
       user={displayUser}
+      reviews={reviewsData?.reviews}
       onEditPress={() => router.push('/edit-profile')}
       footer={
         <View style={styles.footer}>

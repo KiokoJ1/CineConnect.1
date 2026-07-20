@@ -90,8 +90,8 @@ async function createProject(user, payload) {
   return projectModel.createProject(user.id, data);
 }
 
-async function listOpenProjects() {
-  return projectModel.findAllOpen();
+async function listOpenProjects(filters) {
+  return projectModel.findAllOpen(filters);
 }
 
 async function listMyProjects(user) {

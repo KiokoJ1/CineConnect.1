@@ -8,15 +8,25 @@ const router = express.Router();
 
 router.use(authenticate);
 
-// GET /api/users?search=&role= — user directory for starting a new conversation.
-// Unlike /api/admin/users this is open to any signed-in user, not just admins,
-// and never returns the caller themselves or admin accounts.
+// GET /api/users?search=&role=&skills=&location=&page=&limit= — user directory for starting a
+// new conversation, Browse Talent, and general search. Unlike /api/admin/users this is open to
+// any signed-in user, not just admins, and never returns the caller themselves or admin accounts.
 router.get('/', async (req, res, next) => {
   try {
-    const { role, search } = req.query;
-    const users = await userModel.findAll({ role: role || undefined, search: search || undefined });
-    const visible = users.filter((u) => u.id !== req.user.id && u.role !== 'admin');
-    return sendSuccess(res, 200, 'Users retrieved.', { users: visible.map(sanitizeUser) });
+    const { role, search, skills, location, page, limit } = req.query;
+    const result = await userModel.findAll({
+      role: role || undefined,
+      search: search || undefined,
+      skills: skills || undefined,
+      location: location || undefined,
+      page,
+      limit,
+    });
+    const visible = result.users.filter((u) => u.id !== req.user.id && u.role !== 'admin');
+    return sendSuccess(res, 200, 'Users retrieved.', {
+      users: visible.map(sanitizeUser),
+      pagination: { total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages },
+    });
   } catch (err) {
     return next(err);
   }

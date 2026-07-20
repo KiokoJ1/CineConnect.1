@@ -58,7 +58,7 @@ function buildRows(messages: Message[]): Row[] {
 export default function ChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, draft: draftParam } = useLocalSearchParams<{ id: string; draft?: string }>();
   const myId = useAuthStore((s) => s.user?.id);
   const qc = useQueryClient();
   const { colors, typography } = useTheme();
@@ -70,7 +70,7 @@ export default function ChatScreen() {
   const markRead = useMarkThreadRead();
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(draftParam ?? '');
   const [typing, setTyping] = useState(false);
   const listRef = useRef<FlatList<Row>>(null);
 

@@ -136,6 +136,61 @@ async function run() {
         throw err;
       }
     }
+
+    // --- Social profile actions: Follow/Unfollow ---
+    try {
+      await connection.execute(
+        `
+        CREATE TABLE follows (
+          follow_id   NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          follower_id NUMBER NOT NULL REFERENCES users(user_id),
+          followee_id NUMBER NOT NULL REFERENCES users(user_id),
+          created_at  TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+          CONSTRAINT uq_follows UNIQUE (follower_id, followee_id),
+          CONSTRAINT chk_follows_not_self CHECK (follower_id != followee_id)
+        )
+        `,
+        {},
+        { autoCommit: true },
+      );
+      console.log('Created table: follows');
+    } catch (err) {
+      if (err.errorNum === ORA_NAME_IN_USE) {
+        console.log('Table follows already exists — skipping.');
+      } else {
+        throw err;
+      }
+    }
+
+    try {
+      await connection.execute(
+        `CREATE INDEX idx_follows_followee ON follows (followee_id)`,
+        {},
+        { autoCommit: true },
+      );
+      console.log('Created index: idx_follows_followee');
+    } catch (err) {
+      if (err.errorNum === ORA_NAME_IN_USE) {
+        console.log('Index idx_follows_followee already exists — skipping.');
+      } else {
+        throw err;
+      }
+    }
+
+    try {
+      await connection.execute(
+        `CREATE INDEX idx_follows_follower ON follows (follower_id)`,
+        {},
+        { autoCommit: true },
+      );
+      console.log('Created index: idx_follows_follower');
+    } catch (err) {
+      if (err.errorNum === ORA_NAME_IN_USE) {
+        console.log('Index idx_follows_follower already exists — skipping.');
+      } else {
+        throw err;
+      }
+    }
   } finally {
     await connection.close();
     await closePool();

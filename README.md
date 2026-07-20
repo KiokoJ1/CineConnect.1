@@ -26,7 +26,7 @@ A React Native (Expo) mobile app connecting Kenyan film-industry freelancers wit
 cd backend
 cp .env.example .env        # fill in DB_USER, DB_PASSWORD, DB_CONNECT_STRING, JWT_SECRET
 npm install
-npm run migrate             # creates notifications + multi-role + profile-photo schema (idempotent)
+npm run migrate             # creates notifications + multi-role + profile-photo + follows schema (idempotent)
 npm run seed:admin          # creates the admin/admin login (idempotent)
 npm run dev                 # http://localhost:5000
 
@@ -70,6 +70,9 @@ the full endpoint/table/file breakdown.
 | User discovery (Message button, Discover tab) | ✅ Live backend | [`MESSAGING_DISCOVERY.md`](./MESSAGING_DISCOVERY.md) |
 | Multi-role user system | ✅ Backend + frontend done | [`MULTI_ROLE_SYSTEM.md`](./MULTI_ROLE_SYSTEM.md) |
 | Editable profile (photo, cover photo, bio, skills, experience, location) | ✅ Backend + frontend done | see [Editable profile](#editable-profile) below |
+| Social profile actions (Follow/Unfollow/Message/Hire, real-time counts) | ✅ Backend + frontend done | see [Social profile actions](#social-profile-actions) below |
+| Profile statistics (ratings, reviews, completed jobs, applications) | ✅ Backend + frontend done | [`USER_PROFILE.md`](./USER_PROFILE.md) |
+| Backend search & filtering (users, jobs) | ✅ Backend done, frontend still client-side | see [Backend search & filtering](#backend-search--filtering) below |
 | Application status "final decision lock" | ⏳ Not yet built | requested, not completed in this session — see note below |
 | Job category/production-type taxonomy | ⚠️ Known gap | Oracle schema has no fixed taxonomy; documented in `APPLICATION_WORKFLOW.md` |
 | Content moderation / reports | ⚠️ Known gap | no table exists; admin "Flagged" stat is honestly `0`, not fabricated |
@@ -242,11 +245,197 @@ fields already relied on.
   (`GET /api/users`, `GET /api/applications/...`, etc.) and wasn't part of
   "complete the editable profile."
 
+## Social profile actions
+
+**Follow, Unfollow, Message, and Hire** buttons on a freelancer's profile
+screen (`app/talent/[id].tsx`), with follower/following counts that update
+in real time — both for the person doing the following (instant, no round
+trip) and for the person being followed (live push, if their own profile
+screen happens to be open).
+
+### New table
+
+```sql
+CREATE TABLE follows (
+  follow_id   NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  follower_id NUMBER NOT NULL REFERENCES users(user_id),
+  followee_id NUMBER NOT NULL REFERENCES users(user_id),
+  created_at  TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+  CONSTRAINT uq_follows UNIQUE (follower_id, followee_id),
+  CONSTRAINT chk_follows_not_self CHECK (follower_id != followee_id)
+);
+```
+Created by `npm run migrate` (see below), along with indexes on both
+`follower_id` and `followee_id` — every count query filters by one of those.
+
+### Endpoints
+
+| Method & path | Purpose |
+|---|---|
+| `GET /api/follows/:userId` | `{ isFollowing, followerCount, followingCount }` for a profile screen |
+| `POST /api/follows/:userId` | Follow — idempotent (following someone twice is a no-op, not an error) |
+| `DELETE /api/follows/:userId` | Unfollow |
+
+Following someone does two things beyond the database row: pushes a
+`follow_update` socket event to the person being followed (same
+`emitToUser()` used by notifications/messages), and leaves a durable
+"New Follower" notification via the existing `notify()` helper — reusing
+both pieces of real-time infrastructure exactly as they were, no new
+plumbing needed.
+
+### Two different kinds of "real time" here
+
+- **The person clicking Follow** sees the button flip and the count change
+  instantly — this is a React Query optimistic update (`onMutate`), not a
+  socket round trip. It's their own action; there's no reason to wait on
+  the network to show it.
+- **The person being followed** only finds out via the socket. If they
+  happen to have their own profile screen open when it happens, the count
+  updates live; if not, the notification is sitting there (persisted) next
+  time they check, and the count itself is correct on next fetch regardless
+  since it's computed fresh from the `follows` table every time, never
+  cached server-side.
+
+### "Hire" — a deliberate scope decision, not a new workflow
+
+There's no direct-hire-without-a-job-posting concept anywhere in this
+app's data model — hiring happens through the existing Job Application
+workflow (`APPLICATION_WORKFLOW.md`: apply → Accept). Building a parallel
+hiring system for this button would have meant inventing project/contract
+state that doesn't exist in the schema. Instead, **Hire opens a chat with
+a pre-filled message** ("Hi, I'd like to hire you for a project...") —
+100% reuse of the existing messaging feature, zero new backend surface for
+the button itself. The button only shows when the viewer's *active* role
+(see Multi-role above) is `producer`, since hiring is a producer action.
+
+### Files added/modified
+
+**Backend**
+- `backend/models/followModel.js`, `backend/routes/followRoutes.js` **(new)**.
+- `backend/app.js` — mounted at `/api/follows`.
+- `backend/scripts/migrate.js` — the `follows` table + two indexes.
+
+**Frontend**
+- `src/api/follows.ts` **(new)** — `useFollowStatus()`, `useFollowActions()` (optimistic follow/unfollow).
+- `src/hooks/useNotificationSocket.ts` — new `follow_update` listener.
+- `src/types/index.ts` — `User` gained `followerCount`/`followingCount`; `NotificationType` gained `new_follower`.
+- `src/components/NotificationRow.tsx` — icon for the new notification type.
+- `src/components/FreelancerProfileView.tsx` — follower/following counts displayed under the rating row.
+- `app/talent/[id].tsx` — Follow/Unfollow, Message, and (producer-only) Hire buttons.
+- `src/screens/FreelancerProfileScreen.tsx` — fetches and displays the signed-in user's own counts (also what the `follow_update` socket push updates when someone follows *you*).
+- `app/chat/[id].tsx` — accepts an optional `draft` route param, used by the Hire flow to pre-fill the message.
+
+### Known gaps (documented, not fabricated)
+
+- **No followers/following list screen** — counts are real and live, but
+  there's nowhere to tap through and see *who* follows you. Would reuse the
+  existing Discover-tab user-list pattern from `MESSAGING_DISCOVERY.md` if
+  built.
+- **No unfollow confirmation** — follow/unfollow are both single-tap,
+  matching how most social apps treat this specific action (unlike, say,
+  deleting an application). Worth a product decision if that's wrong.
+
+## Profile statistics
+
+Real **ratings, reviews, completed jobs, and applications** on the profile
+screen — the star rating and review list were UI slots that existed but
+had nothing populating them (`user.rating` was always `0`); no schema
+changes needed, just a new `GET /api/profiles/:userId/stats` endpoint
+composing existing rating/application queries for *any* user, not only
+"me". Full breakdown in **[`USER_PROFILE.md`](./USER_PROFILE.md)**.
+
+## Backend search & filtering
+
+Real search, filtering, and pagination for **users** and **jobs**, all
+against Oracle — no schema changes, and every existing caller keeps working
+exactly as before (see "Backward compatibility" below).
+
+### `GET /api/users`
+
+Powers Browse Talent, the Messages "Discover" tab, and `GET /api/admin/users`
+internally (same query builder, admin route just doesn't drop admin
+accounts/self from the results).
+
+| Param | Matches |
+|---|---|
+| `search` | Name, skills, **or** location (broad OR match) |
+| `role` | Exact role (`freelancer`/`producer`/`client`/`admin`) |
+| `skills` | Just the skills field, narrower than `search` |
+| `location` | Just the location field, narrower than `search` |
+| `page`, `limit` | Real pagination (`limit` capped at 100) |
+
+`skills`/`location` needed a join that didn't exist before — those fields
+live on `profiles`, not `users`, and the old query only ever touched
+`users`. The join is `LEFT JOIN` (not `INNER`), so an account with no
+profile row yet still matches on name — it just won't match a skills/
+location search, which is correct, not a bug.
+
+### `GET /api/projects`
+
+The open-jobs feed.
+
+| Param | Matches |
+|---|---|
+| `search` | Title, description, **or** role needed |
+| `role` | Role needed (jobs have no separate "skills" field — `role_needed` is the closest equivalent, same free-text-not-a-taxonomy caveat as `APPLICATION_WORKFLOW.md` already documents) |
+| `location` | Job location |
+| `minBudget`, `maxBudget` | Budget range |
+| `page`, `limit` | Real pagination (`limit` capped at 100, defaults to 20 once paginating) |
+
+### Pagination response shape
+
+Every paginated endpoint adds a `pagination` object **alongside** its
+existing array key — additive, not a breaking change to the response shape:
+
+```json
+{
+  "success": true,
+  "message": "...",
+  "data": {
+    "users": [ /* unchanged shape */ ],
+    "pagination": { "total": 42, "page": 1, "limit": 20, "totalPages": 3 }
+  }
+}
+```
+
+### Backward compatibility — how "don't break existing endpoints" was kept literal
+
+Both endpoints had real, working callers before this pass
+(`useAllUsers`/`useTalent`/`useAdminUsers` on the frontend; `useJobsFeed`,
+which fetches the **entire** open-jobs list and paginates client-side —
+see `APPLICATION_WORKFLOW.md`'s known gap about this). Changing the
+defaults would have silently broken both:
+
+- `GET /api/users` called with no `page`/`limit` still returns up to 200
+  rows unpaginated — the exact cap it always had. Pagination only kicks in
+  if a caller explicitly passes `page` or `limit`.
+- `GET /api/projects` called with no filters/pagination still returns
+  **every** open project unbounded, exactly as before — required, since
+  the frontend's client-side pagination logic assumes it's slicing the
+  complete list. Real server-side pagination only activates if a caller
+  explicitly passes `page`/`limit`.
+
+Neither model function's old call sites (`projectService.listMyProjects`,
+`applicationModel` counts, etc.) were touched — only `findAll` and
+`findAllOpen` changed, and only their *callers* were updated to handle the
+new (additive) return shape.
+
+### Known gaps (documented, not fabricated)
+
+- **Frontend still does client-side filtering/pagination** for jobs
+  (`src/api/jobs.ts`) and hasn't been switched to the new server-side
+  `page`/`limit`/filter params — this pass was scoped to the backend only,
+  per the request. Wiring the frontend to use real pagination instead of
+  fetching the full list is a natural next step.
+- **No full-text search index** — every match is a `LIKE '%...%'` scan, not
+  Oracle Text or a trigram index. Fine at this app's current scale; would
+  need revisiting if the `users`/`projects` tables grow large.
+
 ## Backend setup scripts
 
 | Command (run from `backend/`) | What it does |
 | --- | --- |
-| `npm run migrate` | Creates the `notifications` table, the multi-role schema (`users.active_role`, `user_roles`), and the profile-photo columns (`profiles.profile_photo`, `profiles.cover_photo`) if missing, with backfill for existing accounts (idempotent) |
+| `npm run migrate` | Creates the `notifications` table, the multi-role schema (`users.active_role`, `user_roles`), the profile-photo columns (`profiles.profile_photo`, `profiles.cover_photo`), and the `follows` table if missing, with backfill for existing accounts (idempotent) |
 | `npm run seed:admin` | Creates or repairs the `admin`/`admin` login (idempotent) — public registration deliberately can't create an admin account |
 
 ## Project structure

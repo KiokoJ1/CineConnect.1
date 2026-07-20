@@ -26,9 +26,11 @@ interface FreelancerProfileViewProps {
   experienceLevel?: string | null;
   /** Images/videos/featured work — omitted (no section rendered) if not provided. */
   portfolioItems?: PortfolioItem[];
-  /** Rendered at the top of the scroll body, right below the header band (e.g. Switch Role). */
+  /** Rendered at the top of the scroll body, right below the header band (e.g. Switch Role, follower counts). */
   header?: ReactNode;
-  /** Rendered at the bottom of the scroll (e.g. action button). */
+  /** Rendered right after `header`, before any profile content — primary actions (Follow/Message/Hire) that must be visible without scrolling. */
+  actions?: ReactNode;
+  /** Rendered at the bottom of the scroll, after every section — secondary actions (e.g. Edit Profile, Log Out). */
   footer?: ReactNode;
   /** When provided, shows a back arrow on the header band. */
   onBack?: () => void;
@@ -44,6 +46,7 @@ export function FreelancerProfileView({
   experienceLevel,
   portfolioItems,
   header,
+  actions,
   footer,
   onBack,
 }: FreelancerProfileViewProps) {
@@ -85,6 +88,8 @@ export function FreelancerProfileView({
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {header ? <View style={styles.headerSlot}>{header}</View> : null}
+
+        {actions ? <View style={styles.actionsSlot}>{actions}</View> : null}
 
         <View style={styles.ratingRow}>
           <StarRating rating={user.rating ?? 0} reviewCount={user.reviewCount} />
@@ -212,6 +217,9 @@ const getStyles = (colors: ThemeColors, typography: Typography) =>
       paddingBottom: spacing.xxxl,
     },
     headerSlot: {
+      marginBottom: spacing.lg,
+    },
+    actionsSlot: {
       marginBottom: spacing.lg,
     },
     ratingRow: {

@@ -30,4 +30,11 @@ async function listFreelancers(req, res, next) {
   } catch (error) { return next(error); }
 }
 
-module.exports = { getMyProfile, getProfileByUserId, listFreelancers, upsertMyProfile };
+async function getProfileStats(req, res, next) {
+  try {
+    const stats = await profileService.getProfileStats(Number(req.params.userId));
+    return sendSuccess(res, 200, 'Profile stats retrieved successfully.', stats);
+  } catch (error) { return next(error); }
+}
+
+module.exports = { getMyProfile, getProfileByUserId, listFreelancers, upsertMyProfile, getProfileStats };

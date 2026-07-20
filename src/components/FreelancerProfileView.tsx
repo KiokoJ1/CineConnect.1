@@ -2,18 +2,21 @@ import { ReactNode } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Review } from '@/api/reviews';
 import { ThemeColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/layout';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { User } from '@/types';
-import { formatRate } from '@/utils/format';
+import { formatRate, formatRelativeTime } from '@/utils/format';
 import { AvailabilityDot } from './AvailabilityDot';
 import { Avatar } from './Avatar';
 import { StarRating } from './StarRating';
 
 interface FreelancerProfileViewProps {
   user: User;
+  /** Individual reviews received — see src/api/reviews.ts#useReviews. Omit to hide the Reviews section entirely. */
+  reviews?: Review[];
   /** Rendered at the bottom of the scroll (e.g. action button). */
   footer?: ReactNode;
   /** When provided, shows a back arrow on the header band. */
@@ -23,7 +26,7 @@ interface FreelancerProfileViewProps {
 }
 
 /** Profile body with the dark purple header band — screen 6. */
-export function FreelancerProfileView({ user, footer, onBack, onEditPress }: FreelancerProfileViewProps) {
+export function FreelancerProfileView({ user, reviews, footer, onBack, onEditPress }: FreelancerProfileViewProps) {
   const insets = useSafeAreaInsets();
   const { colors, typography } = useTheme();
   const styles = getStyles(colors, typography);
@@ -72,6 +75,30 @@ export function FreelancerProfileView({ user, footer, onBack, onEditPress }: Fre
           <StarRating rating={user.rating ?? 0} reviewCount={user.reviewCount} />
         </View>
 
+        {user.followerCount !== undefined ? (
+          <View style={styles.followRow}>
+            <Text style={styles.followStat}>
+              <Text style={styles.followCount}>{user.followerCount}</Text> Followers
+            </Text>
+            <Text style={styles.followStat}>
+              <Text style={styles.followCount}>{user.followingCount ?? 0}</Text> Following
+            </Text>
+          </View>
+        ) : null}
+
+        {user.completedJobs !== undefined ? (
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{user.completedJobs}</Text>
+              <Text style={styles.statLabel}>Completed Jobs</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{user.totalApplications ?? 0}</Text>
+              <Text style={styles.statLabel}>Applications</Text>
+            </View>
+          </View>
+        ) : null}
+
         {user.bio ? (
           <>
             <View style={styles.divider} />
@@ -118,6 +145,29 @@ export function FreelancerProfileView({ user, footer, onBack, onEditPress }: Fre
         ) : (
           <Text style={styles.emptyText}>No film credits added yet.</Text>
         )}
+
+        {reviews ? (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.sectionTitle}>Reviews</Text>
+            {reviews.length > 0 ? (
+              reviews.map((review) => (
+                <View key={review.id} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewerName}>{review.reviewerName}</Text>
+                    <Text style={styles.reviewStars}>{'★'.repeat(Math.round(review.score))}</Text>
+                  </View>
+                  <Text style={styles.reviewMeta}>
+                    {review.projectTitle} · {formatRelativeTime(review.createdAt)}
+                  </Text>
+                  {review.reviewText ? <Text style={styles.reviewText}>{review.reviewText}</Text> : null}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No reviews yet.</Text>
+            )}
+          </>
+        ) : null}
 
         <View style={styles.divider} />
 
@@ -196,6 +246,67 @@ const getStyles = (colors: ThemeColors, typography: Typography) =>
     },
     ratingRow: {
       marginTop: spacing.sm,
+    },
+    followRow: {
+      flexDirection: 'row',
+      gap: spacing.xl,
+      marginTop: spacing.md,
+    },
+    followStat: {
+      ...typography.caption,
+    },
+    followCount: {
+      color: colors.textPrimary,
+      fontWeight: '700',
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginTop: spacing.lg,
+    },
+    statCard: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      backgroundColor: colors.background,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    statNumber: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    statLabel: {
+      ...typography.caption,
+      marginTop: spacing.xs,
+    },
+    reviewCard: {
+      marginBottom: spacing.lg,
+    },
+    reviewHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    reviewerName: {
+      ...typography.body,
+      fontWeight: '700',
+    },
+    reviewStars: {
+      color: colors.star,
+      letterSpacing: 1,
+    },
+    reviewMeta: {
+      ...typography.caption,
+      marginTop: 2,
+    },
+    reviewText: {
+      ...typography.body,
+      color: colors.textPrimary,
+      marginTop: spacing.sm,
+      lineHeight: 21,
     },
     divider: {
       height: 1,

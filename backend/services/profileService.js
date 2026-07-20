@@ -1,4 +1,6 @@
 const profileModel = require('../models/profileModel');
+const ratingModel = require('../models/ratingModel');
+const applicationModel = require('../models/applicationModel');
 
 const VALID_AVAILABILITY = ['available', 'unavailable', 'busy'];
 const VALID_CURRENCIES   = ['KES','USD','GBP','EUR','TZS','UGX','ETB','ZAR','NGN','GHS'];
@@ -87,4 +89,26 @@ async function listFreelancers() {
   return profileModel.findFreelancers();
 }
 
-module.exports = { getMyProfile, getProfileByUserId, listFreelancers, upsertMyProfile };
+/**
+ * Ratings, review count, completed jobs (hired applications), and total
+ * applications for any user's profile — reuses the same model functions
+ * already powering the ratings endpoint and the freelancer's own analytics,
+ * just aggregated together and made available for *any* userId (not only
+ * "me"), since a producer viewing a freelancer's profile needs this too.
+ */
+async function getProfileStats(userId) {
+  const [ratingStats, totalApplications, completedJobs] = await Promise.all([
+    ratingModel.getAverageScore(userId),
+    applicationModel.countByFreelancer(userId),
+    applicationModel.countByFreelancer(userId, 'hired'),
+  ]);
+
+  return {
+    avgRating: ratingStats.avgScore ?? 0,
+    totalReviews: ratingStats.total,
+    completedJobs,
+    totalApplications,
+  };
+}
+
+module.exports = { getMyProfile, getProfileByUserId, listFreelancers, upsertMyProfile, getProfileStats };
